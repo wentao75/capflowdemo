@@ -1,14 +1,9 @@
 <template>
-    <div class="home">
-        <img alt="Vue logo" src="../assets/logo.png" />
-        <HelloWorld msg="Welcome to Your Vue.js App" />
-        <div id="graph"></div>
-    </div>
+    <div id="graph" style="width=1000px;height=500px;"></div>
 </template>
 
 <script>
 // @ is an alias to /src
-import HelloWorld from "@/components/HelloWorld.vue";
 import useCapitalGraph from "../composable/use-capital-graph";
 
 export default {
@@ -17,9 +12,12 @@ export default {
         useCapitalGraph("graph");
 
         return {};
-    },
-    components: {
-        HelloWorld
     }
 };
 </script>
+<style>
+#graph {
+    width: 100%;
+    height: 50%;
+}
+</style>

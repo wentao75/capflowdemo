@@ -1,13 +1,19 @@
 import Vue from "vue";
 import VueRouter from "vue-router";
 import Home from "../views/Home.vue";
+import CashPool from "../views/CashPool.vue";
 
 Vue.use(VueRouter);
 
 const routes = [
     {
         path: "/",
-        name: "Home",
+        name: "pool",
+        component: CashPool
+    },
+    {
+        path: "/detail",
+        name: "CashFlow",
         component: Home
     },
     {

@@ -1,102 +1,113 @@
 import { onMounted, onUnmounted } from "@vue/composition-api";
 import echarts from "echarts";
-// import _ from "lodash";
+import _ from "lodash";
 import moment from "moment";
 
-import expenseData from "../data/cash-expense";
+//import expenseData from "../data/cash-expense";
 import poolsData from "../data/pools";
+import hrData from "../data/cash-hr";
+import ofData from "../data/cash-of";
+import zgData from "../data/cash-zg";
+import zjData from "../data/cash-zj";
 
 export default function(graphElementId) {
     // let dailyData = null;
     let dailyChart = null;
 
     const getGraphOption = data => {
-        return data;
-        // return {
-        //     tooltip: {
-        //         trigger: "axis",
-        //         axisPointer: {
-        //             // 坐标轴指示器，坐标轴触发有效
-        //             type: "shadow" // 默认为直线，可选为：'line' | 'shadow'
-        //         }
-        //     },
-        //     legend: {
-        //         data: []
-        //         // left: 10,
-        //     },
-        //     xAxis: {
-        //         data: data,
-        //         name: "日期",
-        //         axisLine: { onZero: true },
-        //         splitLine: { show: false },
-        //         splitArea: { show: false }
-        //     },
-        //     yAxis: {
-        //         inverse: true,
-        //         splitArea: { show: false }
-        //     },
-        //     grid: {
-        //         left: 100
-        //     },
-        //     visualMap: {
-        //         type: "continuous",
-        //         dimension: 1,
-        //         text: ["High", "Low"],
-        //         inverse: true,
-        //         itemHeight: 200,
-        //         calculable: true,
-        //         min: -2,
-        //         max: 6,
-        //         top: 60,
-        //         left: 10,
-        //         inRange: {
-        //             colorLightness: [0.4, 0.8]
-        //         },
-        //         outOfRange: {
-        //             color: "#bbb"
-        //         },
-        //         controller: {
-        //             inRange: {
-        //                 color: "#2f4554"
-        //             }
-        //         }
-        //     },
-        //     series: [
-        //         {
-        //             name: "bar",
-        //             type: "bar",
-        //             stack: "one",
-        //             emphasis: emphasisStyle,
-        //             data: data1
-        //         },
-        //         {
-        //             name: "bar2",
-        //             type: "bar",
-        //             stack: "one",
-        //             emphasis: emphasisStyle,
-        //             data: data2
-        //         },
-        //         {
-        //             name: "bar3",
-        //             type: "bar",
-        //             stack: "two",
-        //             emphasis: emphasisStyle,
-        //             data: data3
-        //         },
-        //         {
-        //             name: "bar4",
-        //             type: "bar",
-        //             stack: "two",
-        //             emphasis: emphasisStyle,
-        //             data: data4
-        //         }
-        //     ]
-        // };
+        // 首先从绘图数据中获得
+        // return data;
+        if (_.isEmpty(data) || _.isEmpty(data.x)) {
+            console.log("数据为空，不能绘图, %o", data);
+            return {};
+        }
+        let series = [];
+        let legendData = [];
+        for (let pool of poolsData) {
+            legendData.push(pool);
+        }
+        // legendData.push("支出");
+        for (let yloan of data.y1) {
+            series.push({
+                name: yloan.name,
+                type: "bar",
+                data: yloan.data,
+                stack: "支出"
+            });
+        }
+        for (let y2 of data.y2) {
+            series.push({
+                name: y2.name,
+                type: "bar",
+                data: y2.data,
+                stack: "回款"
+            });
+        }
+        return {
+            color: [
+                "#61a0a8",
+                "#d48265",
+                "#006699",
+                "#e5323e",
+                "#546570",
+                "#c4ccd3",
+                "#ca8622",
+                "#91c7ae",
+                "#749f83",
+                "#bda29a",
+                "#6e7074",
+                "#2f4554"
+            ],
+            tooltip: {
+                trigger: "axis",
+                axisPointer: {
+                    type: "shadow" // 默认为直线，可选为：'line' | 'shadow'
+                }
+            },
+            grid: {
+                left: "3%",
+                right: "4%",
+                bottom: "15%",
+                containLabel: true
+            },
+            legend: {
+                data: legendData
+            },
+            xAxis: {
+                type: "category",
+                data: data.x,
+                // name: "日期",
+                axisLine: { onZero: true },
+                splitLine: { show: false },
+                splitArea: { show: false }
+            },
+            yAxis: {
+                try: "value",
+                splitArea: { show: false }
+            },
+            dataZoom: [
+                {
+                    type: "inside",
+                    start: 94,
+                    end: 100
+                },
+                {
+                    show: true,
+                    type: "slider",
+                    top: "90%",
+                    start: 94,
+                    end: 100
+                }
+            ],
+            series
+        };
     };
 
     const dailyChartResize = () => {
         dailyChart.resize();
     };
+
+    // const onPoolGraphClick = params => {};
 
     const dataReady = () => {
         console.log("处理数据 ...");
@@ -145,44 +156,53 @@ export default function(graphElementId) {
         第一个输出数据用于堆叠柱状图，按照日期累计，累计按照不同的pool的loan
      */
     const readAndDealData = () => {
+        let expenseData = [...zgData, ...hrData, ...zjData, ...ofData];
         console.log(`静态数据长度：${expenseData && expenseData.length}`);
         // 按照资金池数据，初始化叠加的基本数据
         let yLoans = [];
-        for (let index = 0; index < poolsData.length; index++) {
-            let pool = poolsData[index];
+        let yReturns = [];
+        for (let pool of poolsData) {
             yLoans.push({ name: pool, data: [] });
+            yReturns.push({ name: pool, data: [] });
         }
-        console.log(yLoans);
+        console.log(yLoans, yReturns);
 
         // 先用日期填满x轴，然后
         let xAxis = [];
-        let lastDay = moment("20200701");
-        let firstDay = moment("20200101");
+        // 这里直接从静态数据找到日期最大和最小
+        let lastDay = moment("20200703");
+        let firstDay = moment("20181225");
         for (; firstDay.isBefore(lastDay); firstDay.add(1, "d")) {
             xAxis.push(firstDay.format("YYYY-MM-DD"));
-            for (let i = 0; i < yLoans.length; i++) {
-                let yloan = yLoans[i];
+            for (let yloan of yLoans) {
                 yloan.data.push(0);
+            }
+            for (let yReturn of yReturns) {
+                yReturn.data.push(0);
             }
         }
         // console.log("初始化完成的y轴数据：%o", yLoans);
 
-        firstDay = moment("2020-01-01");
+        firstDay = moment("20181225");
         let count = 0;
-        for (let i = 0; i < expenseData.length; i++) {
-            let data = expenseData[i];
+        for (let data of expenseData) {
             if (data) {
                 let loanDate = moment(data.loanDate);
                 if (loanDate.isBefore(lastDay)) {
                     let index = loanDate.diff(firstDay, "days");
                     let pool = data.pool;
                     // console.log(`处理数据：%o, 索引位置${index}, ${pool}`, data);
-                    for (let j = 0; j < yLoans.length; j++) {
-                        let yloan = yLoans[j];
+                    for (let yloan of yLoans) {
                         // console.log(`查找对应池：%o, ${pool}`, yloan);
                         if (yloan.name === pool) {
                             count += 1;
-                            yloan.data[index] += data.loan;
+                            yloan.data[index] -= data.loan;
+                            break;
+                        }
+                    }
+                    for (let yReturn of yReturns) {
+                        if (yReturn.name === pool) {
+                            yReturn.data[index] += data.writeOffAmount;
                             break;
                         }
                     }
@@ -193,7 +213,8 @@ export default function(graphElementId) {
         // console.log(xAxis, yLoans);
         return {
             x: xAxis,
-            y: yLoans
+            y1: yLoans,
+            y2: yReturns
         };
     };
 
