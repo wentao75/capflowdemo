@@ -9,9 +9,9 @@ import useCapitalGraph from "../composable/use-capital-graph";
 export default {
     name: "Home",
     setup() {
-        useCapitalGraph("graph");
+        const { details } = useCapitalGraph("graph");
 
-        return {};
+        return { details };
     }
 };
 </script>

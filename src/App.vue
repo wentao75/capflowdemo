@@ -1,5 +1,9 @@
 <template>
     <div id="app">
+        <div style="width=100%;height=20px;text-align=left;">
+            <router-link to="/">样式1</router-link>
+            <router-link to="/pool2">样式2</router-link>
+        </div>
         <router-view />
     </div>
 </template>

@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted } from "@vue/composition-api";
+import { onMounted, onUnmounted, ref } from "@vue/composition-api";
 import echarts from "echarts";
 import _ from "lodash";
 import moment from "moment";
@@ -11,8 +11,14 @@ import zgData from "../data/cash-zg";
 import zjData from "../data/cash-zj";
 
 export default function(graphElementId) {
+    let details = ref([]);
+
+    let minDay = moment("20200601");
+    let maxDay = moment("20200703");
     // let dailyData = null;
+    let flowdata = [];
     let dailyChart = null;
+    let series = [];
 
     const getGraphOption = data => {
         // 首先从绘图数据中获得
@@ -21,7 +27,8 @@ export default function(graphElementId) {
             console.log("数据为空，不能绘图, %o", data);
             return {};
         }
-        let series = [];
+
+        series = [];
         let legendData = [];
         for (let pool of poolsData) {
             legendData.push(pool);
@@ -29,20 +36,28 @@ export default function(graphElementId) {
         // legendData.push("支出");
         for (let yloan of data.y1) {
             series.push({
-                name: yloan.name,
+                name: yloan.name, // + "支出",
                 type: "bar",
                 data: yloan.data,
-                stack: "支出"
+                stack: "支出",
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 8,
+                        shadownOffsetX: 0,
+                        shadowColor: "rgba(0,0,0,1)"
+                    }
+                }
             });
         }
         for (let y2 of data.y2) {
             series.push({
-                name: y2.name,
+                name: y2.name, // + "回款",
                 type: "bar",
                 data: y2.data,
                 stack: "回款"
             });
         }
+        console.log(`图序列参数：%o`, series);
         return {
             color: [
                 "#61a0a8",
@@ -88,14 +103,16 @@ export default function(graphElementId) {
             dataZoom: [
                 {
                     type: "inside",
-                    start: 94,
+                    //start: 94,
+                    start: 0,
                     end: 100
                 },
                 {
                     show: true,
                     type: "slider",
                     top: "90%",
-                    start: 94,
+                    //start: 94,
+                    start: 0,
                     end: 100
                 }
             ],
@@ -107,8 +124,48 @@ export default function(graphElementId) {
         dailyChart.resize();
     };
 
-    // const onPoolGraphClick = params => {};
+    let selectedDataIndex = -1;
+    const onGraphClick = params => {
+        console.log(`点击信息：%o`, params);
+        // 下面是数据点位置，可以用于计算出
+        // params.dataIndex;
+        // 高亮选择的数据位置
+        let seriesIndex = [];
+        for (let i = 0; i < series.length; i++) {
+            seriesIndex.push(i);
+        }
 
+        if (selectedDataIndex >= 0) {
+            dailyChart.dispatchAction({
+                type: "unfocusNodeAdjacency",
+                seriesIndex: seriesIndex,
+                dataIndex: selectedDataIndex
+            });
+        }
+
+        console.log("hight: %o, %i", seriesIndex, params.dataIndex);
+        selectedDataIndex = params.dataIndex;
+        dailyChart.dispatchAction({
+            type: "focusNodeAdjacency",
+            seriesIndex: seriesIndex,
+            dataIndex: selectedDataIndex
+        });
+        // 这里的设置效果实际操作中看不出效果，原因是图形在当前鼠标对应到柱图时，已经设置高亮显示，这个显示效果在鼠标移动后会重制，造成设置无效！
+
+        // 根据当前点击重新设置显示值
+        let selectedDate = moment(minDay).add(params.dataIndex - 1, "d");
+        let sdate = selectedDate.format("YYYY/M/D");
+        details.value = flowdata.filter(data => {
+            return data.loanDate === sdate || data.returnDate === sdate;
+        });
+        console.log(
+            `选择条件：${params.dataIndex}, ${sdate}, 选择后的数据：%o`,
+            details.value
+        );
+    };
+
+    // let currentIndex = -1;
+    // let dataLen = -1;
     const dataReady = () => {
         console.log("处理数据 ...");
         let graphElement = document.getElementById(graphElementId);
@@ -119,24 +176,42 @@ export default function(graphElementId) {
             window.addEventListener("resize", dailyChartResize);
         }
 
-        // if (_.isEmpty(rawData)) {
-        //     console.log(`数据为空，不继续处理...`);
-        //     return;
-        // }
-        // dailyData = rawData;
-        // console.log(
-        //     `数据长度：${
-        //         dailyData && dailyData.data && dailyData.data.length
-        //     }, ${rawData && rawData.tsCode}, %o`,
-        //     rawData && rawData.info
-        // );
-
-        // let data = splitData(dailyData);
         let data = readAndDealData();
         let option = getGraphOption(data);
 
         dailyChart.setOption(option, true);
         dailyChart.resize();
+        dailyChart.on("click", onGraphClick);
+        // dailyChart.on("mousemove", params => {
+        //     console.log(`mousemove: %o, ${selectedDataIndex}`, params);
+        //     if (
+        //         // params.dataIndex === selectedDataIndex &&
+        //         selectedDataIndex >= 0
+        //     ) {
+        //         let seriesIndex = [];
+        //         for (let i = 0; i < series.length; i++) {
+        //             seriesIndex.push(i);
+        //         }
+        //         dailyChart.dispatchAction({
+        //             type: "highlight",
+        //             seriesIndex: seriesIndex,
+        //             dataIndex: selectedDataIndex
+        //         });
+        //     }
+        // });
+        // setInterval(function() {
+        //     dailyChart.dispatchAction({
+        //         type: "downplay",
+        //         seriesIndex: [0, 1, 2, 3, 4, 5, 6, 7],
+        //         dataIndex: currentIndex
+        //     });
+        //     currentIndex = (currentIndex + 1) % dataLen;
+        //     dailyChart.dispatchAction({
+        //         type: "highlight",
+        //         seriesIndex: [0, 1, 2, 3, 4, 5, 6, 7],
+        //         dataIndex: currentIndex
+        //     });
+        // }, 1000);
         console.log("数据设置完毕！");
     };
 
@@ -158,6 +233,29 @@ export default function(graphElementId) {
     const readAndDealData = () => {
         let expenseData = [...zgData, ...hrData, ...zjData, ...ofData];
         console.log(`静态数据长度：${expenseData && expenseData.length}`);
+        for (let data of expenseData) {
+            // 每一行数据需要拆分出支出和回款两天数据，回款可能没有，则计算计划回款（这次暂时不处理）
+            let returnDate = data.returnDate;
+            if (_.isEmpty(data.returnDate)) {
+                let dd = moment(data.loanDate).add(data.period, "d");
+                returnDate = dd.format("YYYY/M/D");
+            }
+            flowdata.push({
+                project: data.project,
+                customer: data.customer,
+                loan: data.loan,
+                loanDate: data.loanDate,
+                returnDate,
+                sales: data.sales,
+                pool: data.pool
+            });
+        }
+        flowdata.sort((a, b) => {
+            return moment(b.loanDate).isBefore(moment(a.loanDate));
+        });
+        // 设置返回数据
+        details.value = flowdata;
+
         // 按照资金池数据，初始化叠加的基本数据
         let yLoans = [];
         let yReturns = [];
@@ -170,9 +268,14 @@ export default function(graphElementId) {
         // 先用日期填满x轴，然后
         let xAxis = [];
         // 这里直接从静态数据找到日期最大和最小
+
         let lastDay = moment("20200703");
         let firstDay = moment("20181225");
         for (; firstDay.isBefore(lastDay); firstDay.add(1, "d")) {
+            if (firstDay.isBefore(minDay) || firstDay.isAfter(maxDay)) {
+                continue;
+            }
+
             xAxis.push(firstDay.format("YYYY-MM-DD"));
             for (let yloan of yLoans) {
                 yloan.data.push(0);
@@ -183,12 +286,14 @@ export default function(graphElementId) {
         }
         // console.log("初始化完成的y轴数据：%o", yLoans);
 
-        firstDay = moment("20181225");
+        firstDay = minDay;
         let count = 0;
         for (let data of expenseData) {
             if (data) {
                 let loanDate = moment(data.loanDate);
-                if (loanDate.isBefore(lastDay)) {
+                if (loanDate.isAfter(maxDay) && loanDate.isBefore(minDay)) {
+                    continue;
+                } else {
                     let index = loanDate.diff(firstDay, "days");
                     let pool = data.pool;
                     // console.log(`处理数据：%o, 索引位置${index}, ${pool}`, data);
@@ -209,6 +314,7 @@ export default function(graphElementId) {
                 }
             }
         }
+        // dataLen = xAxis.length;
         console.log(`共找到并处理了${count}条数据`);
         // console.log(xAxis, yLoans);
         return {
@@ -233,5 +339,8 @@ export default function(graphElementId) {
         window.removeEventListener("resize", dailyChartResize);
     });
 
-    return {};
+    // 返回要显示的数据，在图上选择会调整显示内容
+    return {
+        details
+    };
 }

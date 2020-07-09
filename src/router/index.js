@@ -2,6 +2,7 @@ import Vue from "vue";
 import VueRouter from "vue-router";
 import Home from "../views/Home.vue";
 import CashPool from "../views/CashPool.vue";
+import CashPool2 from "../views/CashPool2.vue";
 
 Vue.use(VueRouter);
 
@@ -10,6 +11,11 @@ const routes = [
         path: "/",
         name: "pool",
         component: CashPool
+    },
+    {
+        path: "/pool2",
+        name: "pool2",
+        component: CashPool2
     },
     {
         path: "/detail",

@@ -4,7 +4,6 @@ import echarts from "echarts";
 import poolData from "../data/cash-pooling";
 
 export default function(graphElementId, router) {
-    // let dailyData = null;
     let dailyChart = null;
 
     const getGraphOption = data => {
@@ -13,18 +12,81 @@ export default function(graphElementId, router) {
             return {};
         }
 
-        // let series = [];
-        let legendData = [];
-        let avaliable = [];
-        let used = [];
-        let total = [];
-        for (let pool of data) {
-            legendData.push(pool.name);
-            avaliable.push(pool.available);
-            used.push(pool.used);
-            total.push(pool.total);
+        // let legendData = [];
+        // for (let pool of data) {
+        //     legendData.push(pool.name);
+        // }
+
+        // 创建多个grid，分别放置柱形叠加
+        let grids = [];
+        let xAxis = [];
+        let yAxis = [];
+        let series = [];
+        let count = data.length;
+        for (let index = 0; index < count; index++) {
+            grids.push({
+                left: (index * 100) / count + 1 + "%",
+                right: 101 - ((index + 1) * 100) / count + "%",
+                bottom: "3%"
+            });
+            xAxis.push({
+                type: "category",
+                data: [data[index].name],
+                gridIndex: index,
+                axisLine: { show: false },
+                axisTick: { show: false },
+                axisLabel: { show: false },
+                splitLine: { show: false }
+            });
+            yAxis.push({
+                type: "value",
+                gridIndex: index,
+                splitArea: { show: false },
+                axisLine: { show: false },
+                axisTick: { show: false },
+                axisLabel: { show: false },
+                splitLine: { show: false },
+                max: data[index].total
+            });
+            series.push({
+                name: "可用",
+                type: "bar",
+                stack: data[index].name + "资金池",
+                data: [data[index].available],
+                xAxisIndex: index,
+                yAxisIndex: index,
+                label: {
+                    show: true,
+                    formatter: "{a}: {c}"
+                }
+            });
+            series.push({
+                name: "已用",
+                type: "bar",
+                stack: data[index].name + "资金池",
+                data: [data[index].used],
+                xAxisIndex: index,
+                yAxisIndex: index,
+                label: {
+                    show: true,
+                    formatter: "{a}: {c}"
+                }
+            });
+            series.push({
+                name: "总额",
+                type: "scatter",
+                data: [data[index].total],
+                xAxisIndex: index,
+                yAxisIndex: index,
+                symbolSize: 1,
+                label: {
+                    show: true,
+                    position: "top",
+                    formatter: "{b}: {c}"
+                }
+            });
         }
-        console.log(legendData, avaliable, used, total);
+        console.log(grids, xAxis, yAxis, series);
 
         return {
             color: ["#006699", "#c4ccd3"],
@@ -34,66 +96,13 @@ export default function(graphElementId, router) {
                     type: "shadow" // 默认为直线，可选为：'line' | 'shadow'
                 }
             },
-            grid: {
-                left: "3%",
-                right: "4%",
-                bottom: "3%",
-                containLabel: true
-            },
-            legend: {
-                data: legendData
-            },
-            xAxis: {
-                type: "category",
-                data: legendData,
-                // name: "日期",
-                axisLine: { show: false },
-                axisTick: { show: false },
-                axisLabel: { show: false },
-                splitLine: { show: false }
-                // splitArea: { show: false }
-            },
-            yAxis: {
-                try: "value",
-                splitArea: { show: false },
-                axisLine: { show: false },
-                axisTick: { show: false },
-                axisLabel: { show: false },
-                splitLine: { show: false }
-            },
-            series: [
-                {
-                    name: "可用",
-                    type: "bar",
-                    stack: "资金池",
-                    data: avaliable,
-                    label: {
-                        show: true,
-                        formatter: "{a}: {c}"
-                    }
-                },
-                {
-                    name: "已用",
-                    type: "bar",
-                    stack: "资金池",
-                    data: used,
-                    label: {
-                        show: true,
-                        formatter: "{a}: {c}"
-                    }
-                },
-                {
-                    name: "总额",
-                    type: "scatter",
-                    data: total,
-                    symbolSize: 1,
-                    label: {
-                        show: true,
-                        position: "top",
-                        formatter: "{b}: {c}"
-                    }
-                }
-            ]
+            grid: grids,
+            // legend: {
+            //     data: legendData
+            // },
+            xAxis,
+            yAxis,
+            series
         };
     };
 
@@ -127,6 +136,7 @@ export default function(graphElementId, router) {
 
     const readAndDealData = () => {
         console.log(`静态数据长度：${poolData && poolData.length}`);
+
         // 计算汇总
         let total = {
             name: "总计",
