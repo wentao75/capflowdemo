@@ -1,6 +1,7 @@
 import { onMounted, onUnmounted, ref } from "@vue/composition-api";
 import echarts from "echarts";
 import _ from "lodash";
+import numeral from "numeral";
 import moment from "moment";
 
 //import expenseData from "../data/cash-expense";
@@ -13,7 +14,7 @@ import zjData from "../data/cash-zj";
 export default function(graphElementId) {
     let details = ref([]);
 
-    let minDay = moment("20200601");
+    let minDay = moment("20181225");
     let maxDay = moment("20200703");
     // let dailyData = null;
     let flowdata = [];
@@ -54,7 +55,14 @@ export default function(graphElementId) {
                 name: y2.name, // + "回款",
                 type: "bar",
                 data: y2.data,
-                stack: "回款"
+                stack: "回款",
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 8,
+                        shadownOffsetX: 0,
+                        shadowColor: "rgba(0,0,0,1)"
+                    }
+                }
             });
         }
         console.log(`图序列参数：%o`, series);
@@ -73,6 +81,23 @@ export default function(graphElementId) {
                 "#6e7074",
                 "#2f4554"
             ],
+            emphasis: {
+                itemStyle: {
+                    shadowBlur: 8,
+                    shadownOffsetX: 0,
+                    shadowColor: "rgba(0,0,0,1)"
+                }
+            },
+            brush: {
+                brushLink: "all",
+                removeOnClick: "true",
+                inBrush: {
+                    opacity: 1
+                },
+                outOfBrush: {
+                    opacity: 0.1
+                }
+            },
             tooltip: {
                 trigger: "axis",
                 axisPointer: {
@@ -103,16 +128,16 @@ export default function(graphElementId) {
             dataZoom: [
                 {
                     type: "inside",
-                    //start: 94,
-                    start: 0,
+                    start: 94,
+                    // start: 0,
                     end: 100
                 },
                 {
                     show: true,
                     type: "slider",
                     top: "90%",
-                    //start: 94,
-                    start: 0,
+                    start: 94,
+                    // start: 0,
                     end: 100
                 }
             ],
@@ -125,8 +150,9 @@ export default function(graphElementId) {
     };
 
     let selectedDataIndex = -1;
+    let selectedDate = "";
     const onGraphClick = params => {
-        console.log(`点击信息：%o`, params);
+        // console.log(`点击信息：%o`, params);
         // 下面是数据点位置，可以用于计算出
         // params.dataIndex;
         // 高亮选择的数据位置
@@ -137,31 +163,34 @@ export default function(graphElementId) {
 
         if (selectedDataIndex >= 0) {
             dailyChart.dispatchAction({
-                type: "unfocusNodeAdjacency",
+                type: "downplay",
                 seriesIndex: seriesIndex,
                 dataIndex: selectedDataIndex
             });
         }
 
-        console.log("hight: %o, %i", seriesIndex, params.dataIndex);
+        // console.log("hight: %o, %i", seriesIndex, params.dataIndex);
         selectedDataIndex = params.dataIndex;
         dailyChart.dispatchAction({
-            type: "focusNodeAdjacency",
+            type: "highlight",
             seriesIndex: seriesIndex,
             dataIndex: selectedDataIndex
         });
         // 这里的设置效果实际操作中看不出效果，原因是图形在当前鼠标对应到柱图时，已经设置高亮显示，这个显示效果在鼠标移动后会重制，造成设置无效！
 
         // 根据当前点击重新设置显示值
-        let selectedDate = moment(minDay).add(params.dataIndex - 1, "d");
-        let sdate = selectedDate.format("YYYY/M/D");
+        let sdate = moment(minDay).add(params.dataIndex, "d");
+        selectedDate = sdate.format("YYYY/M/D");
         details.value = flowdata.filter(data => {
-            return data.loanDate === sdate || data.returnDate === sdate;
+            return (
+                data.loanDate === selectedDate ||
+                data.returnDate === selectedDate
+            );
         });
-        console.log(
-            `选择条件：${params.dataIndex}, ${sdate}, 选择后的数据：%o`,
-            details.value
-        );
+        // console.log(
+        //     `选择条件：${params.dataIndex}, ${selectedDate}, 选择后的数据：%o`,
+        //     details.value
+        // );
     };
 
     // let currentIndex = -1;
@@ -236,7 +265,7 @@ export default function(graphElementId) {
         for (let data of expenseData) {
             // 每一行数据需要拆分出支出和回款两天数据，回款可能没有，则计算计划回款（这次暂时不处理）
             let returnDate = data.returnDate;
-            if (_.isEmpty(data.returnDate)) {
+            if (_.isEmpty(data.returnDate) && !_.isEmpty(data.period)) {
                 let dd = moment(data.loanDate).add(data.period, "d");
                 returnDate = dd.format("YYYY/M/D");
             }
@@ -245,6 +274,7 @@ export default function(graphElementId) {
                 customer: data.customer,
                 loan: data.loan,
                 loanDate: data.loanDate,
+                writeOffAmount: data.writeOffAmount,
                 returnDate,
                 sales: data.sales,
                 pool: data.pool
@@ -291,12 +321,17 @@ export default function(graphElementId) {
         for (let data of expenseData) {
             if (data) {
                 let loanDate = moment(data.loanDate);
-                if (loanDate.isAfter(maxDay) && loanDate.isBefore(minDay)) {
+                let pool = data.pool;
+                if (loanDate.isAfter(maxDay) || loanDate.isBefore(minDay)) {
                     continue;
                 } else {
                     let index = loanDate.diff(firstDay, "days");
-                    let pool = data.pool;
-                    // console.log(`处理数据：%o, 索引位置${index}, ${pool}`, data);
+                    // if (index === 546 || data.loanDate === "2020/6/23") {
+                    //     console.log(
+                    //         `处理数据：%o, 索引位置${index}, ${pool}`,
+                    //         data
+                    //     );
+                    // }
                     for (let yloan of yLoans) {
                         // console.log(`查找对应池：%o, ${pool}`, yloan);
                         if (yloan.name === pool) {
@@ -305,6 +340,19 @@ export default function(graphElementId) {
                             break;
                         }
                     }
+                }
+
+                let returnDate = moment(data.returnDate);
+                if (returnDate.isAfter(maxDay) || returnDate.isBefore(minDay)) {
+                    continue;
+                } else {
+                    let index = returnDate.diff(firstDay, "days");
+                    // if (index === 546 || data.returnDate === "2020/6/23") {
+                    //     console.log(
+                    //         `处理数据：%o, 索引位置${index}, ${pool}`,
+                    //         data
+                    //     );
+                    // }
                     for (let yReturn of yReturns) {
                         if (yReturn.name === pool) {
                             yReturn.data[index] += data.writeOffAmount;
@@ -316,7 +364,7 @@ export default function(graphElementId) {
         }
         // dataLen = xAxis.length;
         console.log(`共找到并处理了${count}条数据`);
-        // console.log(xAxis, yLoans);
+        console.log(xAxis, yLoans, yReturns);
         return {
             x: xAxis,
             y1: yLoans,
@@ -339,8 +387,38 @@ export default function(graphElementId) {
         window.removeEventListener("resize", dailyChartResize);
     });
 
+    const calculateSummaries = () => {
+        // const { columns, data } = params;
+        let sums = [];
+        sums[0] = "合计";
+        sums[1] = `(${selectedDate})`;
+        sums[2] = 0; // 支出
+        sums[4] = 0; // 回款
+        if (
+            selectedDataIndex >= 0 &&
+            !_.isEmpty(selectedDate) &&
+            !_.isEmpty(details.value)
+        ) {
+            for (let tmp of details.value) {
+                if (tmp.loanDate === selectedDate) {
+                    sums[2] += tmp.loan;
+                }
+                if (tmp.returnDate === selectedDate) {
+                    sums[4] += tmp.writeOffAmount;
+                }
+            }
+        } else {
+            sums[2] = "---";
+            sums[4] = "---";
+        }
+        sums[2] = numeral(sums[2]).format("0,0.00");
+        sums[4] = numeral(sums[4]).format("0,0.00");
+        return sums;
+    };
+
     // 返回要显示的数据，在图上选择会调整显示内容
     return {
-        details
+        details,
+        calculateSummaries
     };
 }

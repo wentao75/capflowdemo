@@ -1,5 +1,6 @@
 import { onMounted, onUnmounted } from "@vue/composition-api";
 import _ from "lodash";
+import numeral from "numeral";
 import echarts from "echarts";
 import poolData from "../data/cash-pooling";
 
@@ -69,7 +70,12 @@ export default function(graphElementId, router) {
                     data: avaliable,
                     label: {
                         show: true,
-                        formatter: "{a}: {c}"
+                        formatter: params => {
+                            //"{a}: {c}"
+                            return `${params.seriesName}: ${numeral(
+                                params.value
+                            ).format("0,0.00")}`;
+                        }
                     }
                 },
                 {
@@ -79,7 +85,13 @@ export default function(graphElementId, router) {
                     data: used,
                     label: {
                         show: true,
-                        formatter: "{a}: {c}"
+                        // formatter: "{a}: {c}"
+                        formatter: params => {
+                            //"{a}: {c}"
+                            return `${params.seriesName}: ${numeral(
+                                params.value
+                            ).format("0,0.00")}`;
+                        }
                     }
                 },
                 {
@@ -90,7 +102,13 @@ export default function(graphElementId, router) {
                     label: {
                         show: true,
                         position: "top",
-                        formatter: "{b}: {c}"
+                        // formatter: "{b}: {c}"
+                        formatter: params => {
+                            //"{a}: {c}"
+                            return `${params.name}: ${numeral(
+                                params.value
+                            ).format("0,0.00")}`;
+                        }
                     }
                 }
             ]
